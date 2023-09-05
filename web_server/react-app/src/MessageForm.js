@@ -1,44 +1,95 @@
 // MessageForm.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function MessageForm() {
-  const [message, setMessage] = useState('');
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await fetch('/api/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message }),
+    const [messageData, setMessageData] = useState({
+        address: '',
+        transaction: '',
+        policy: '',
+        vm_address: '',
       });
+    const [receivedMessage, setReceivedMessage] = useState('');
+    const [ws, setWs] = useState(null);
 
-      if (response.ok) {
-        alert('Message sent successfully!');
-        setMessage('');
-      } else {
-        alert('Failed to send message.');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
+    useEffect(() => {
+        const newWs = new WebSocket('ws://localhost:19999/ws');
+        newWs.onopen = () => {
+            console.log('WebSocket connection opened');
+        };
+        newWs.onmessage = (event) => {
+            const received = event.data;
+            setReceivedMessage(received);
+        };
+        setWs(newWs);
 
-  return (
-    <form onSubmit={handleSubmit}>
-      <label>
-        Message:
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-        />
-      </label>
-      <button type="submit">Send</button>
-    </form>
-  );
+        return () => {
+            newWs.close();
+        };
+    }, []);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (ws) {
+            ws.send(JSON.stringify(messageData));
+        }
+        setMessageData({
+            address: '',
+            transaction: '',
+            policy: '',
+            vm_address: '',
+        });
+    };
+
+    return (
+        <div>
+        <form onSubmit={handleSubmit}>
+            <label>
+            Address (Client IP):
+            <input
+                type="text"
+                value={messageData.address}
+                onChange={(e) =>
+                setMessageData({ ...messageData, address: e.target.value })
+                }
+            />
+            </label>
+            <label>
+            Transaction:
+            <input
+                type="text"
+                value={messageData.transaction}
+                onChange={(e) =>
+                setMessageData({ ...messageData, transaction: e.target.value })
+                }
+            />
+            </label>
+            <label>
+            Policy:
+            <input
+                type="text"
+                value={messageData.policy}
+                onChange={(e) =>
+                setMessageData({ ...messageData, policy: e.target.value })
+                }
+            />
+            </label>
+            <label>
+            VM Address:
+            <input
+                type="text"
+                value={messageData.vm_address}
+                onChange={(e) =>
+                setMessageData({ ...messageData, vm_address: e.target.value })
+                }
+            />
+            </label>
+            <button type="submit">Send</button>
+        </form>
+        <div>
+            <strong>Received Message:</strong> {receivedMessage}
+        </div>
+        </div>
+    );
 }
 
 export default MessageForm;
