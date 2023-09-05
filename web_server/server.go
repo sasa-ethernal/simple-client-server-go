@@ -8,9 +8,10 @@ import (
 
 func main() {
 	r := mux.NewRouter()
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./react-app/build")))
 
-	r.HandleFunc("/api/data", sendHandler).Methods("GET")  
+	r.HandleFunc("/api/send", sendHandler).Methods("POST")
+
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./react-app/build")))
 
 	http.Handle("/", r)
 	http.ListenAndServe(":19999", nil)
