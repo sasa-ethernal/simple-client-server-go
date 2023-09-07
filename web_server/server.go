@@ -26,11 +26,18 @@ type MessageData struct {
 func main() {
 	r := mux.NewRouter()
 
+	r.HandleFunc("/api/header", getHeader).Methods("GET")
     r.HandleFunc("/ws", handleConnections)
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./react-app/build")))
 
 	http.Handle("/", r)
 	http.ListenAndServe(":19999", nil)
+}
+
+func getHeader(w http.ResponseWriter, r *http.Request) {
+	header := "Simple Message App"
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(header)
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
