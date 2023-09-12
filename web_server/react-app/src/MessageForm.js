@@ -20,6 +20,24 @@ function MessageForm() {
             const received = event.data;
             setReceivedMessage(received);
             alert("New message " + received)
+
+            let receivedObj = JSON.parse(received)
+
+            // Request Policy
+            if (receivedObj.policy === "" || receivedObj.policy === null || receivedObj.policy === undefined) {
+                let msg = {...receivedObj, policy: "123"}
+                fetch('/api/deliverPolicy', {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(msg),
+                })
+                    .then((response) => response.json())
+                    .then((data) => console.log(data))
+                    .catch((error) => console.error('Error while fetching:', error));
+
+            }
         };
         setWs(newWs);
 

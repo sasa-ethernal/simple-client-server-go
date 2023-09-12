@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"io/ioutil"
 	"fmt"
 	"net/http"
 
@@ -17,14 +18,7 @@ var upgrader = websocket.Upgrader{
 }
 
 var ClientsMap = make(map[string]*websocket.Conn)
-
-type MessageLog struct {
-	From			string
-	To 				string
-	TransactionId	int
-	PolicyId		int
-	VMAddress		string
-}
+var TransactionMap = make(map[string]AddressPair)
 
 type MessageData struct {
 	Address      string `json:"address"`
@@ -33,10 +27,16 @@ type MessageData struct {
 	VMAddress    string `json:"vm_address"`
 }
 
+type AddressPair struct {
+	From string
+	To	 string
+}
+
 func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/api/header", getHeader).Methods("GET")
+	r.HandleFunc("/api/deliverPolicy", deliverPolicy).Methods("POST")
     r.HandleFunc("/ws", handleConnections)
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./react-app/build")))
 
@@ -48,6 +48,86 @@ func getHeader(w http.ResponseWriter, r *http.Request) {
 	header := "Simple Message App"
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(header)
+}
+
+// Not used
+func requestPolicy(w http.ResponseWriter, r *http.Request) {
+	// Connect to DB
+	db, err := connectDB()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	defer db.Close()
+
+	// Read Message from Request
+	r.ParseForm()
+	var messageData MessageData
+	messageData.Address = r.FormValue("address")
+	messageData.Transaction = r.FormValue("transaction")
+	messageData.Policy = r.FormValue("policy")
+	messageData.VMAddress = r.FormValue("vm_address")
+
+	// Send Message and save transaction pair
+    clientIP := r.RemoteAddr
+	targetClient, ok := ClientsMap[messageData.Address]
+	if ok {
+		TransactionMap[messageData.Transaction] = AddressPair {
+			From: clientIP,
+			To: messageData.Address,
+		}
+
+		if err := targetClient.WriteJSON(messageData); err != nil {
+			fmt.Println(err)
+		}
+
+		// Write log to DB
+		_, err = db.Exec("INSERT INTO messagelogs (from_address, to_address, transactionId, policyId, vmaddress) VALUES (?, ?, ?, ?, ?)", 
+			clientIP, messageData.Address, messageData.Transaction, messageData.Policy, messageData.VMAddress)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+	}
+}
+
+func deliverPolicy(w http.ResponseWriter, r *http.Request) {
+	// Connect to DB
+	db, err := connectDB()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	defer db.Close()
+
+	// Read Message from Request
+	body, _ := ioutil.ReadAll(r.Body)
+	var messageData MessageData
+	if err := json.Unmarshal(body, &messageData); err != nil {
+	   fmt.Println(err)
+	   return
+   	}
+
+	fmt.Println("Deliver: ", messageData)
+
+	// Send Message and save transaction pair
+	addressPair, ok := TransactionMap[messageData.Transaction]
+	if ok {
+		targetClient, ok := ClientsMap[addressPair.From]
+		if ok {	
+			if err := targetClient.WriteJSON(messageData); err != nil {
+				fmt.Println(err)
+			}
+		}
+
+		// Write log to DB
+		_, err = db.Exec("INSERT INTO messagelogs (from_address, to_address, transactionId, policyId, vmaddress) VALUES (?, ?, ?, ?, ?)", 
+			addressPair.To, addressPair.From, messageData.Transaction, messageData.Policy, messageData.VMAddress)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+	}
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
@@ -89,6 +169,10 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		// Send Message to Message.Address
 		targetClient, ok := ClientsMap[messageData.Address]
 		if ok {
+			TransactionMap[messageData.Transaction] = AddressPair {
+				From: clientIP,
+				To: messageData.Address,
+			}
             if err := targetClient.WriteMessage(messageType, p); err != nil {
                 fmt.Println(err)
             }
@@ -96,7 +180,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 		// Write log to DB
 		_, err = db.Exec("INSERT INTO messagelogs (from_address, to_address, transactionId, policyId, vmaddress) VALUES (?, ?, ?, ?, ?)", 
-			clientIP, messageData.Address, messageData.Transaction, messageData.Policy, messageData.VMAddress)
+			clientIP, messageData.Address, messageData.Transaction, 0, messageData.VMAddress)
 		if err != nil {
 			fmt.Println(err.Error())
 			return
