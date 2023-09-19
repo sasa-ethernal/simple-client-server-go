@@ -1,19 +1,56 @@
 // MessageForm.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
+import Web3 from "web3";
+import MessageContract from "./contracts/msg_server.json";
 
 function MessageForm() {
-    const [messageData, setMessageData] = useState("");
+    const [web3, setWeb3] = useState(null);
+    const [contract, setContract] = useState(null);
+    const [messageData, setMessageData] = useState({
+        address: '',
+        transaction: '',
+        policy: '',
+        vm_address: '',
+      });
     const [receivedMessage, setReceivedMessage] = useState('');
 
-    useEffect(() => {
-        // Connecto to BC
-        // Subscribe to events
-    }, []);
+    // useEffect(() => {
+    //     const initWeb3 = async () => {
+    //         if (window.ethereum) {
+    //             const web3Instance = new Web3(window.ethereum);
+    //             try {
+    //                 await window.ethereum.enable();
+    //                 setWeb3(web3Instance);
+    //                 const networkId = await web3Instance.eth.net.getId();
+    //                 const deployedNetwork = MessageContract.networks[networkId];
+    //                 const contractInstance = new web3Instance.eth.Contract(
+    //                     MessageContract.abi,
+    //                     deployedNetwork && deployedNetwork.address
+    //                 );
+    //                 setContract(contractInstance);
+    //             } catch (error) {
+    //                 console.error("User denied account access or something went wrong.");
+    //             }
+    //         }
+    //     };
 
-    const handleSubmit = (e) => {
+    //     initWeb3();
+    // }, []);
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // send to BC
+        try {
+            await contract.methods.RequestPolicy(messageData.address, messageData).send({ from: web3.eth.defaultAccount });
+            setMessageData({
+                address: '',
+                transaction: '',
+                policy: '',
+                vm_address: '',
+              });
+        } catch (error) {
+            console.error(error);
+        }
 
         setMessageData("");
     };
