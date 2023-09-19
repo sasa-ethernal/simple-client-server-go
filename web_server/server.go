@@ -36,6 +36,7 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/api/header", getHeader).Methods("GET")
+	// r.HandleFunc("/api/requestPolicy", requestPolicy).Methods("POST")
 	r.HandleFunc("/api/deliverPolicy", deliverPolicy).Methods("POST")
     r.HandleFunc("/ws", handleConnections)
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./react-app/build")))
@@ -50,7 +51,7 @@ func getHeader(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(header)
 }
 
-// Not used
+// only if WEB API call is used (not tested)
 func requestPolicy(w http.ResponseWriter, r *http.Request) {
 	// Connect to DB
 	db, err := connectDB()
@@ -61,12 +62,12 @@ func requestPolicy(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	// Read Message from Request
-	r.ParseForm()
+	body, _ := ioutil.ReadAll(r.Body)
 	var messageData MessageData
-	messageData.Address = r.FormValue("address")
-	messageData.Transaction = r.FormValue("transaction")
-	messageData.Policy = r.FormValue("policy")
-	messageData.VMAddress = r.FormValue("vm_address")
+	if err := json.Unmarshal(body, &messageData); err != nil {
+	   fmt.Println(err)
+	   return
+   	}
 
 	// Send Message and save transaction pair
     clientIP := r.RemoteAddr

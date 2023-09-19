@@ -48,9 +48,22 @@ function MessageForm() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        // WS call
         if (ws) {
             ws.send(JSON.stringify(messageData));
         }
+        // API call
+        // fetch('/api/requestPolicy', {
+        //     method: "POST",
+        //     headers: {
+        //         "Content-Type": "application/json"
+        //     },
+        //     body: JSON.stringify(messageData),
+        // })
+        //     .then((response) => response.json())
+        //     .then((data) => console.log(data))
+        //     .catch((error) => console.error('Error while requesting:', error));
+
         setMessageData({
             address: '',
             transaction: '',
