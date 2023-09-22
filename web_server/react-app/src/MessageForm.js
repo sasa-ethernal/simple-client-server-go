@@ -19,13 +19,17 @@ function MessageForm() {
         newWs.onmessage = (event) => {
             const received = event.data;
             setReceivedMessage(received);
-            alert("New message " + received)
 
             let receivedObj = JSON.parse(received)
 
-            // Request Policy
-            if (receivedObj.policy === "" || receivedObj.policy === null || receivedObj.policy === undefined) {
-                let msg = {...receivedObj, policy: "123"}
+            // Step 2 WS call || RequestPolicy
+            if (receivedObj.type === "requestPolicy") {
+                alert("Policy requested " + received)
+
+                // Populate policy id
+                let msg = {...receivedObj.message, policy: "37"}
+
+                // Step 3 API call || DeliverPolicy
                 fetch('/api/deliverPolicy', {
                     method: "POST",
                     headers: {
@@ -36,7 +40,14 @@ function MessageForm() {
                     .then((response) => response.json())
                     .then((data) => console.log(data))
                     .catch((error) => console.error('Error while fetching:', error));
-
+            }
+            // Step 4 WS call || DeliverPolicy
+            else if (receivedObj.type === "deliverPolicy") {
+                alert("Policy delivered " + received)
+                console.log(receivedObj.message)
+            }
+            else {
+                console.log("Unknown type.")
             }
         };
         setWs(newWs);
@@ -48,21 +59,22 @@ function MessageForm() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // WS call
-        if (ws) {
-            ws.send(JSON.stringify(messageData));
-        }
-        // API call
-        // fetch('/api/requestPolicy', {
-        //     method: "POST",
-        //     headers: {
-        //         "Content-Type": "application/json"
-        //     },
-        //     body: JSON.stringify(messageData),
-        // })
-        //     .then((response) => response.json())
-        //     .then((data) => console.log(data))
-        //     .catch((error) => console.error('Error while requesting:', error));
+        // Step 1 WebSocket call || RequestPolicy
+        // if (ws) {
+        //     ws.send(JSON.stringify(messageData));
+        // }
+
+        // Step 1 API call || RequestPolicy
+        fetch('/api/requestPolicy', {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(messageData),
+        })
+            .then((response) => response.json())
+            .then((data) => console.log(data))
+            .catch((error) => console.error('Error while requesting:', error));
 
         setMessageData({
             address: '',
@@ -95,7 +107,7 @@ function MessageForm() {
                     }
                 />
                 </label>
-                <label>
+                {/* <label>
                 Policy:
                 <input
                     type="text"
@@ -104,7 +116,7 @@ function MessageForm() {
                     setMessageData({ ...messageData, policy: e.target.value })
                     }
                 />
-                </label>
+                </label> */}
                 <label>
                 VM Address:
                 <input
